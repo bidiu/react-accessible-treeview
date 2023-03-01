@@ -724,6 +724,15 @@ export interface IBranchProps {
   className: string;
 }
 
+export interface INodeClassNameProps {
+  /** The object that represents the rendered node */
+  element: INode;
+  /** Whether the rendered node is a branch node */
+  isBranch: boolean;
+  /** A positive integer that corresponds to the aria-level attribute */
+  level: number;
+}
+
 export interface INodeRendererProps {
   /** The object that represents the rendered node */
   element: INode;
@@ -806,6 +815,8 @@ export interface ITreeViewProps {
   onLoadData?: (props: ITreeViewOnLoadDataProps) => Promise<any>;
   /** className to add to the outermost ul */
   className?: string;
+  /**  */
+  itemClassName?: string | ((props: INodeClassNameProps) => string);
   /** Render prop for the node */
   nodeRenderer: (props: INodeRendererProps) => React.ReactNode;
   /** Indicates what action will be performed on a node which informs the correct aria-* properties to use on the node (aria-checked if using checkboxes, aria-selected if not). */
@@ -853,6 +864,7 @@ const TreeView = React.forwardRef<HTMLUListElement, ITreeViewProps>(
       onExpand = noop,
       onLoadData,
       className = "",
+      itemClassName,
       multiSelect = false,
       propagateSelect = false,
       propagateSelectUpwards = false,
@@ -939,6 +951,7 @@ const TreeView = React.forwardRef<HTMLUListElement, ITreeViewProps>(
             dispatch={dispatch}
             nodeRefs={nodeRefs}
             baseClassNames={baseClassNames}
+            itemClassName={itemClassName}
             nodeRenderer={nodeRenderer}
             propagateCollapse={propagateCollapse}
             propagateSelect={propagateSelect}
@@ -968,6 +981,8 @@ interface INodeProps {
   lastUserSelect: number;
   nodeRefs: INodeRefs;
   baseClassNames: typeof baseClassNames;
+  /**  */
+  itemClassName?: string | ((props: INodeClassNameProps) => string);
   nodeRenderer: (props: INodeRendererProps) => React.ReactNode;
   setsize: number;
   posinset: number;
@@ -995,6 +1010,7 @@ const Node = (props: INodeProps) => {
     lastUserSelect,
     nodeRefs,
     baseClassNames,
+    itemClassName,
     nodeRenderer,
     nodeAction,
     setsize,
@@ -1144,7 +1160,15 @@ const Node = (props: INodeProps) => {
     };
   };
 
-  return isBranchNode(data, element.id) || element.isBranch ? (
+  const isBranch = isBranchNode(data, element.id) || Boolean(element.isBranch);
+  const extraClassName =
+    typeof itemClassName === "string"
+      ? itemClassName
+      : typeof itemClassName === "function"
+      ? itemClassName({ element, isBranch, level })
+      : "";
+
+  return isBranch ? (
     <li
       role="treeitem"
       aria-expanded={expandedIds.has(element.id)}
@@ -1158,7 +1182,7 @@ const Node = (props: INodeProps) => {
           nodeRefs.current[element.id] = x;
         }
       }}
-      className={baseClassNames.branchWrapper}
+      className={`${baseClassNames.branchWrapper} ${extraClassName}`}
       {...ariaActionProp}
     >
       <>
@@ -1185,7 +1209,7 @@ const Node = (props: INodeProps) => {
       </>
     </li>
   ) : (
-    <li role="none" className={getClasses(baseClassNames.leafListItem)}>
+    <li role="none" className={`${getClasses(baseClassNames.leafListItem)} ${extraClassName}`}>
       {nodeRenderer({
         element,
         isBranch: false,
